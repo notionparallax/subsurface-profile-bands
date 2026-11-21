@@ -9,7 +9,7 @@ It supports two pieces of work:
 - letting heart rate and the tissue heat map be shown at the same time (today the toolbar turns one off when the other is turned on), and
 - a SAC trace, proposed in [subsurface#5136](https://github.com/subsurface/subsurface/issues/5136).
 
-The page has a section for each decision, listing the options considered. Each option has a button that sets the prototype to it. Each view has its own URL, so a link shows exactly what someone is looking at.
+The page opens on the proposed layout. Each view has its own URL, so a link shows exactly what someone is looking at; the proposal on the issue links to each option that was considered.
 
 ## What is real and what is approximate
 
@@ -21,7 +21,6 @@ The page has a section for each decision, listing the options considered. Each o
 ## Files
 
 - `index.html`, `style.css`, `app.js`: the page.
-- `decisions.js`: the questions, options, verdicts and reasons.
 - `data.js`: generated dive data.
 - `tools/mkdata.py`: converts Subsurface CSV profile exports into `data.js`.
 

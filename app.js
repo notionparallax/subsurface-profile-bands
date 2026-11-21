@@ -588,29 +588,7 @@ function initControls() {
   syncControls();
 }
 
-function initDecisions() {
-  const list = document.getElementById('decision-list');
-  list.innerHTML = DECISIONS.map((d) => `
-    <article class="decision" id="${d.id}">
-      <h3>${d.question}</h3>
-      <p class="why">${d.why}</p>
-      ${d.options.map((o, i) => `
-        <div class="option">
-          <span class="verdict ${o.verdict}">${o.verdict}</span>
-          <div><p>${o.label}</p>${o.reason ? `<p class="reason">${o.reason}</p>` : ''}</div>
-          <button type="button" data-d="${d.id}" data-o="${i}">Show</button>
-        </div>`).join('')}
-    </article>`).join('');
-  list.addEventListener('click', (ev) => {
-    const b = ev.target.closest('button[data-d]');
-    if (!b) return;
-    const d = DECISIONS.find((x) => x.id === b.dataset.d);
-    setSettings(merge(S, d.options[Number(b.dataset.o)].show), true);
-    document.getElementById('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-}
 
 window.addEventListener('popstate', () => { S = readHash(); syncControls(); render(); });
 initControls();
-initDecisions();
 render();
