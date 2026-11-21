@@ -24,6 +24,7 @@ const DEFAULTS = {
   pressure: true,
   grayscale: false,
   dashShared: true,
+  secondaryTicks: 'aligned', // 'own' | 'labels' | 'aligned'
   ppFrac: 10,          // % (Subsurface uses 0.1 unless "Scale graph" is on, then the gasplot_frac preference)
 };
 
@@ -341,17 +342,63 @@ function drawProfile(svg, L, dive, X, xs) {
     text(svg, L.right - 4, P.y + P.h - 4, `deeper than ${dMax} m: clipped`, { 'text-anchor': 'end', fill: col('hrText') });
 }
 
-function drawAxis(svg, L, slot, side, min, max, colour, unitLabel) {
-  const Y = (v) => slot.y + slot.h - ((v - min) / (max - min)) * (slot.h - 4);
-  const step = niceStep(max - min, Math.max(1, Math.floor(slot.h / 16)));
-  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) {
-    if (Y(v) < slot.y + 7) continue;   // keep labels inside the band
-    if (side === 'left') {
-      text(svg, L.left - 4, Y(v) + 4, formatTick(v, step), { 'text-anchor': 'end', fill: colour, 'font-size': 10 });
-    } else {
-      text(svg, L.right + 4, Y(v) + 4, formatTick(v, step), { fill: colour, 'font-size': 10 });
+// An axis: its range and the values that get a label (and, if it owns the grid, a grid line).
+function ownAxis(min, max, slotH) {
+  const step = niceStep(max - min, Math.max(1, Math.floor(slotH / 16)));
+  const ticks = [];
+  for (let v = Math.ceil(min / step - 1e-9) * step; v <= max + 1e-9; v += step) ticks.push(v);
+  return { min, max, step, ticks };
+}
+
+// The primary axis of a shared band: the top is rounded up to a grid line, so that the
+// band has a whole number of grid intervals for the secondary axis to follow.
+function primaryAxis(min, max, slotH) {
+  const a = ownAxis(min, max, slotH);
+  a.max = Math.ceil(max / a.step - 1e-9) * a.step;
+  a.ticks = [];
+  for (let v = a.min; v <= a.max + 1e-9; v += a.step) a.ticks.push(v);
+  return a;
+}
+
+const NICE = [1, 2, 2.5, 5];
+function nextNice(x) {
+  const mag = 10 ** Math.floor(Math.log10(x));
+  for (const m of NICE) if (m * mag >= x - 1e-9) return m * mag;
+  return 10 * mag;
+}
+
+// A secondary axis that labels the primary's grid lines.
+// 'labels': whatever value falls on each line. 'aligned': a range chosen so that each
+// line falls on a round value.
+function secondaryAxis(primary, dataMin, dataMax, mode) {
+  const n = Math.round((primary.max - primary.min) / primary.step);
+  if (mode === 'labels') {
+    const min = dataMin, max = dataMax;
+    const step = (max - min) / n;
+    return { min, max, step, ticks: primary.ticks.map((_, k) => min + k * step), raw: true };
+  }
+  let step = nextNice((dataMax - dataMin) / n);
+  for (let guard = 0; guard < 20; guard++) {
+    const lo = Math.floor(dataMin / step) * step;
+    if (lo + n * step >= dataMax - 1e-9) {
+      const ticks = [];
+      for (let k = 0; k <= n; k++) ticks.push(lo + k * step);
+      return { min: lo, max: lo + n * step, step, ticks };
     }
-    el('line', { x1: L.left, x2: L.right, y1: Y(v), y2: Y(v), stroke: col('grid') }, svg);
+    step = nextNice(step * 1.01);
+  }
+  return ownAxis(dataMin, dataMax, 0);
+}
+
+function drawAxis(svg, L, slot, side, axis, colour, unitLabel, grid) {
+  const { min, max } = axis;
+  const Y = (v) => slot.y + slot.h - ((v - min) / (max - min)) * (slot.h - 4);
+  for (const v of axis.ticks) {
+    if (Y(v) < slot.y + 7) continue;   // keep labels inside the band
+    const label = axis.raw ? v.toFixed(Math.abs(axis.step) < 2 ? 1 : 0) : formatTick(v, axis.step);
+    if (side === 'left') text(svg, L.left - 4, Y(v) + 4, label, { 'text-anchor': 'end', fill: colour, 'font-size': 10 });
+    else text(svg, L.right + 4, Y(v) + 4, label, { fill: colour, 'font-size': 10 });
+    if (grid) el('line', { x1: L.left, x2: L.right, y1: Y(v), y2: Y(v), stroke: col('grid') }, svg);
   }
   if (unitLabel && slot.h >= 24)
     text(svg, side === 'left' ? L.left + 4 : L.right - 4, slot.y + 11, unitLabel, { 'text-anchor': side === 'left' ? 'start' : 'end', fill: colour, 'font-size': 10 });
@@ -361,24 +408,34 @@ function formatTick(v, step) { return Number.isInteger(step) ? String(Math.round
 
 function drawSlot(svg, L, slot, dive, xs) {
   el('line', { x1: L.left, x2: L.right, y1: slot.y, y2: slot.y, stroke: col('bandEdge') }, svg);
+  // In a shared band the left-hand (SAC) axis owns the grid; the right-hand axis either
+  // has its own grid (today's dual-axis style) or labels the left-hand axis's lines.
+  const shared = slot.key === 'shared' && slot.traces.length === 2;
+  const follow = shared && S.secondaryTicks !== 'own';
+  let primary = null;
+  const hrVals = dive.hr.filter((x) => x > 0);
+  const hrMin = Math.min(...hrVals) - 5, hrMax = Math.max(...hrVals) + 5;
+  const sacValues = smoothSac(dive, S.sacWindow);
+  const sacTop = Math.max(5, sacMax(sacValues));
   for (const tr of slot.traces) {
     const dashed = S.dashShared && slot.key === 'shared' && tr.side === 'right';
     if (tr.kind === 'tissues') drawTissues(svg, L, slot, dive, xs);
     if (tr.kind === 'pp') drawPP(svg, L, slot, dive, xs);
     if (tr.kind === 'temp') drawTemp(svg, L, slot, dive, xs);
+    if (tr.kind === 'sac') {
+      const axis = follow ? primaryAxis(0, sacTop, slot.h) : ownAxis(0, sacTop, slot.h);
+      primary = axis;
+      const Y = drawAxis(svg, L, slot, tr.side, axis, col('sacText'), 'ℓ/min', true);
+      el('path', { d: linePath(xs, sacValues.map((x) => (x == null ? null : Y(Math.min(x, axis.max))))), fill: 'none', stroke: col('sac'), 'stroke-width': 1.5, 'stroke-dasharray': dashed ? '5 3' : null }, svg);
+      // Mark clipped values along the top edge.
+      sacValues.forEach((x, i) => { if (x != null && x > axis.max) el('rect', { x: xs[i] - 1, y: slot.y + 1, width: 2, height: 3, fill: col('sac') }, svg); });
+    }
     if (tr.kind === 'hr') {
       const v = dive.hr.map((x) => (x > 0 ? x : null));
-      const vals = v.filter((x) => x != null);
-      const Y = drawAxis(svg, L, slot, tr.side, Math.min(...vals) - 5, Math.max(...vals) + 5, col('hrText'), 'bpm');
+      // Following SAC's grid, the padding would often force the next, coarser step.
+      const axis = follow && primary ? secondaryAxis(primary, hrMin + 5, hrMax - 5, S.secondaryTicks) : ownAxis(hrMin, hrMax, slot.h);
+      const Y = drawAxis(svg, L, slot, tr.side, axis, col('hrText'), 'bpm', !(follow && primary));
       el('path', { d: linePath(xs, v.map((x) => (x == null ? null : Y(x)))), fill: 'none', stroke: col('hr'), 'stroke-width': 1.5, 'stroke-dasharray': dashed ? '5 3' : null }, svg);
-    }
-    if (tr.kind === 'sac') {
-      const v = smoothSac(dive, S.sacWindow);
-      const max = Math.max(5, sacMax(v));
-      const Y = drawAxis(svg, L, slot, tr.side, 0, max, col('sacText'), 'ℓ/min');
-      el('path', { d: linePath(xs, v.map((x) => (x == null ? null : Y(Math.min(x, max))))), fill: 'none', stroke: col('sac'), 'stroke-width': 1.5, 'stroke-dasharray': dashed ? '5 3' : null }, svg);
-      // Mark clipped values along the top edge.
-      v.forEach((x, i) => { if (x != null && x > max) el('rect', { x: xs[i] - 1, y: slot.y + 1, width: 2, height: 3, fill: col('sac') }, svg); });
     }
   }
 }
@@ -395,7 +452,7 @@ function drawTissues(svg, L, slot, dive, xs) {
 
 function drawPP(svg, L, slot, dive, xs) {
   const max = Math.ceil(Math.max(...dive.po2, ...dive.pn2, ...dive.phe) * 2) / 2 || 1;
-  const Y = drawAxis(svg, L, slot, 'right', 0, max, col('axisText'), 'bar');
+  const Y = drawAxis(svg, L, slot, 'right', ownAxis(0, max, slot.h), col('axisText'), 'bar', true);
   for (const [key, colour] of [['pn2', 'pn2'], ['phe', 'phe'], ['po2', 'po2']]) {
     if (!hasData(dive[key])) continue;
     el('path', { d: linePath(xs, dive[key].map((v) => (v > 0 ? Y(v) : null))), fill: 'none', stroke: col(colour), 'stroke-width': 1.5 }, svg);
@@ -469,6 +526,9 @@ function controlHTML() {
   <fieldset><legend>SAC and heart rate</legend>
     <label><input type="radio" name="pairing" value="separate" data-k="pairing"> A band each</label>
     <label><input type="radio" name="pairing" value="shared" data-k="pairing"> One band, heart rate on the right</label>
+    <label><input type="radio" name="secondaryTicks" value="own" data-k="secondaryTicks"> Heart rate has its own grid lines</label>
+    <label><input type="radio" name="secondaryTicks" value="labels" data-k="secondaryTicks"> Heart rate labels SAC's lines (raw values)</label>
+    <label><input type="radio" name="secondaryTicks" value="aligned" data-k="secondaryTicks"> Heart rate labels SAC's lines (round values)</label>
     <label><input type="radio" name="oneSide" value="fixed" data-k="oneSide"> Lone trace keeps its side</label>
     <label><input type="radio" name="oneSide" value="left" data-k="oneSide"> Lone trace moves to the left</label>
   </fieldset>

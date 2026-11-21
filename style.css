@@ -38,7 +38,7 @@ main {
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 16px;
   padding: 0 16px;
-  max-width: 1700px;
+  max-width: 2000px;
   margin: 0 auto;
 }
 @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }

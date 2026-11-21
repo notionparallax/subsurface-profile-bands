@@ -31,6 +31,16 @@ const DECISIONS = [
     ],
   },
   {
+    id: 'grid',
+    question: 'In a shared band, whose grid lines are drawn?',
+    why: 'Two independent scales each want their own grid lines, and the two sets compete. SAC is the main trace, so its scale can own the grid and heart rate can label the same lines.',
+    options: [
+      { label: 'Each scale has its own grid lines', show: { pairing: 'shared', secondaryTicks: 'own', bands: { sac: true, hr: true } }, verdict: 'open', reason: '' },
+      { label: 'SAC owns the grid; heart rate labels its lines with whatever value falls there', show: { pairing: 'shared', secondaryTicks: 'labels', bands: { sac: true, hr: true } }, verdict: 'open', reason: '' },
+      { label: 'SAC owns the grid; the heart rate range is chosen so its labels on those lines are round numbers', show: { pairing: 'shared', secondaryTicks: 'aligned', bands: { sac: true, hr: true } }, verdict: 'open', reason: '' },
+    ],
+  },
+  {
     id: 'oneside',
     question: 'In a shared band with only one trace, which side is its scale on?',
     why: 'A dive without heart rate, or with SAC turned off, leaves half of a shared band empty.',
