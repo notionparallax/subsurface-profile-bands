@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subsurface profile bands</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Subsurface profile bands: layout prototype</h1>
+  <p class="lede">
+    Which extra graphs can be shown below the dive profile at the same time, in what order, and how much
+    of the height they may take. Built for
+    <a href="https://github.com/subsurface/subsurface/issues/5136">subsurface#5136</a> (a SAC trace) and the
+    change that lets heart rate and the tissue heat map be shown together. The data are real Subsurface
+    profile exports; the drawing is an approximation of Subsurface's, written for this page.
+    Every view has its own URL, so a link shows exactly what you are looking at.
+  </p>
+</header>
+
+<main>
+  <section id="controls" aria-label="Settings"></section>
+  <section id="stage">
+    <div id="readout" aria-live="polite"></div>
+    <div id="chart-wrap"><svg id="chart" role="img" aria-label="Dive profile with bands"></svg></div>
+    <p id="notes"></p>
+  </section>
+</main>
+
+<section id="decisions" aria-label="Decisions">
+  <h2>Decisions</h2>
+  <p>Each question lists the options considered. <em>Show</em> sets the prototype to that option. Verdicts and
+  reasons are filled in as we decide, so that the options we did not choose stay visible with the reason.</p>
+  <div id="decision-list"></div>
+</section>
+
+<footer>
+  <p>Source: <a href="https://github.com/notionparallax/subsurface-profile-bands">github.com/notionparallax/subsurface-profile-bands</a>.
+  Not part of Subsurface. Colours follow <code>core/color.cpp</code>; band fractions follow
+  <code>ProfileScene::updateAxes()</code>.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="decisions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
