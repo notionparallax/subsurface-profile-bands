@@ -28,9 +28,10 @@ def load(path):
             d['pressures'].append([round((int(a) or int(b)) / 1000, 1) or None for a, b in zip(s, i)])
         dives.append(d)
     return dives
-main = load(src + '/dives233-235.csv')
 hr = load(src + '/test36-hr.csv')[0]
-d233 = main[0]
+dives = {n: load(src + '/dive%d.csv' % n)[0] for n in (42, 218, 232, 233, 234, 235)}
+models = {42: 'Suunto D5'}
+d233 = dives[233]
 # Borrow test36's heart rate, stretched over dive 233's duration.
 T = d233['sec'][-1]; T36 = hr['sec'][-1]
 def hr_at(t):
@@ -40,10 +41,11 @@ def hr_at(t):
             return hr['hr'][k]
     return hr['hr'][-1]
 d233hr = dict(d233); d233hr['hr'] = [hr_at(t) for t in d233['sec']]
-data = {
-    'd233': {'name': 'Dive 233: Perdix 2, sidemount, 50% and O2 stages (from #5125)', 'dive': d233},
-    'd233hr': {'name': 'Dive 233 + heart rate borrowed from test36.xml (synthetic, for layout only)', 'dive': d233hr},
-    'test36': {'name': 'test36.xml: Uwatec Galileo Sol, heart rate, no tank pressure (Subsurface test data)', 'dive': hr},
-}
-open(out, 'w', encoding='utf-8').write('// Generated from Subsurface profile data exports (save_profiledata).\nconst DIVES = ' + json.dumps(data, separators=(',', ':')) + ';\n')
+data = {}
+for n in sorted(dives):
+    data['d%d' % n] = {'name': 'Dive %d' % n, 'model': models.get(n, 'Shearwater Perdix 2'), 'dive': dives[n]}
+data['d233hr'] = {'name': 'Dive 233 + heart rate borrowed from test36.xml (synthetic, for layout only)', 'model': 'Shearwater Perdix 2', 'dive': d233hr}
+data['test36'] = {'name': 'test36.xml (Subsurface test data, heart rate, no tank pressure)', 'model': 'Uwatec Galileo Sol', 'dive': hr}
+header = '// Generated from Subsurface profile data exports (save_profiledata).\n'
+open(out, 'w', encoding='utf-8', newline='\n').write(header + 'const DIVES = ' + json.dumps(data, separators=(',', ':')) + ';\n')
 print({k: (len(v['dive']['sec']), v['dive']['sec'][-1], len(v['dive']['pressures'])) for k, v in data.items()})

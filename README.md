@@ -13,7 +13,7 @@ The page has a section for each decision, listing the options considered. Each o
 
 ## What is real and what is approximate
 
-- **Data:** real Subsurface profile exports (`save_profiledata()`), converted by `tools/mkdata.py`. Dive 233 is the dive attached to [subsurface#5125](https://github.com/subsurface/subsurface/issues/5125). `test36.xml` is from Subsurface's test data and has heart rate. The "dive 233 + heart rate" option stretches test36's heart rate over dive 233; it is only there to show both traces together.
+- **Data:** real Subsurface profile exports (`save_profiledata()`), converted by `tools/mkdata.py`. Dives 42 (Suunto D5, one tank), 218 (cave, two-tank sidemount), 232 (four tanks, trimix), 233 (four tanks; attached to [subsurface#5125](https://github.com/subsurface/subsurface/issues/5125)), 234 (three tanks) and 235 (two-tank sidemount) are from one diver's log. `test36.xml` is from Subsurface's test data and has heart rate. The "dive 233 + heart rate" option stretches test36's heart rate over dive 233; it is only there to show both traces together.
 - **Layout:** band fractions and stacking follow `ProfileScene::updateAxes()` in `profile-widget/profilescene.cpp`. The height budget, the SAC band and the shared band are the proposals being tested.
 - **Drawing:** colours and their grayscale twins follow `core/color.cpp`; the tissue colours port `colorScale()` from `profile-widget/divepercentageitem.cpp`. Everything else is a simplified drawing, not Subsurface's code.
 - **SAC smoothing:** the page averages the exported momentary SAC (itself about a 1-minute window) over the chosen window. A real implementation would take the pressure drop over the window.

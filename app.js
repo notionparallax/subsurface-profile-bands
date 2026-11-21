@@ -291,7 +291,7 @@ function render() {
   for (const s of L.slots) drawSlot(svg, L, s, dive, xs);
   if (L.tankbar) drawTankbar(svg, L, dive, X);
 
-  text(svg, 4, H - 4, dive === DIVES.test36.dive ? 'Uwatec Galileo Sol' : 'Shearwater Perdix 2', { fill: col('timeText') });
+  text(svg, 4, H - 4, entry.model, { fill: col('timeText') });
 
   // Readout.
   const pct = (x) => Math.round(x * 100) + '%';
